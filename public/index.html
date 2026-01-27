@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Conversor de Escalas</title>
+
+  <!-- SDK GENESYS -->
+  <script src="https://sdk-cdn.mypurecloud.com/javascript/221.0.0/purecloud-platform-client-v2.min.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 50px auto;
+      width: 80%;
+      max-width: 600px;
+    }
+    h2 { text-align: center; }
+    form {
+      background: #f9f9f9;
+      padding: 30px;
+      border-radius: 8px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Conversor de Escalas para Excel</h2>
+
+  <!-- FORM SÓ APARECE APÓS LOGIN -->
+  <form id="uploadForm" method="POST" enctype="multipart/form-data" style="display:none">
+    <input type="file" name="file" accept=".txt" required />
+    <button type="submit">Processar Arquivo</button>
+  </form>
+
+  <script>
+    // 🔹 INJETADO PELO BACKEND
+    const clientId = '__GENESYS_CLIENT_ID__';
+
+    const client = purecloud.platformClient.ApiClient.instance;
+    client.setEnvironment('sae1.pure.cloud');
+    client.setPersistSettings(true, 'purecloud');
+
+    async function genesysAuth() {
+      const redirectUri = window.location.origin + window.location.pathname;
+
+      const token = await client.loginImplicitGrant(
+        clientId,
+        redirectUri
+      );
+
+      const usersApi = new purecloud.platformClient.UsersApi();
+      const me = await usersApi.getUsersMe();
+
+      sessionStorage.setItem('agentuserid', me.id);
+
+      console.log('Logado no Genesys:', me.name);
+
+      // libera o form
+      document.getElementById('uploadForm').style.display = 'block';
+    }
+
+    genesysAuth().catch(err => {
+      console.error('Erro Genesys:', err);
+      alert('Erro ao autenticar no Genesys');
+    });
+  </script>
+</body>
+</html>
