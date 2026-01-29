@@ -1,4 +1,3 @@
-
 import ExcelJS from 'exceljs';
 
 const DIAS_SEMANA_MAP: Record<string, string> = {

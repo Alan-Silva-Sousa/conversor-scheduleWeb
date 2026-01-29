@@ -1,5 +1,3 @@
-version: "3.9"
- 
 services:
   api-gc:
     container_name: conversor-genesys-excel
@@ -9,55 +7,25 @@ services:
     restart: always
     env_file:
       - .env
- 
+
     labels:
       - "traefik.enable=true"
- 
-      # Router HTTP (porta 80) — TESTE
-      - "traefik.http.routers.gc-http.rule=Host(``)"
+
+      # HTTP
+      - "traefik.http.routers.gc-http.rule=Host(`gerarexcel4me-proxxima.s4me.app`) && PathPrefix(`/`)"
       - "traefik.http.routers.gc-http.entrypoints=http"
-      # - "traefik.http.routers.gc.service=gc"
- 
-      # Router HTTPS (porta 443)
-      - "traefik.http.routers.gc-https.rule=Host(``)"
+
+      # HTTPS
+      - "traefik.http.routers.gc-https.rule=Host(`gerarexcel4me-proxxima.s4me.app`) && PathPrefix(`/`)"
       - "traefik.http.routers.gc-https.entrypoints=https"
       - "traefik.http.routers.gc-https.tls.certresolver=myresolver"
- 
+
       # Service
-      - "traefik.http.services.gc-http.loadbalancer.server.port=3000"
+      - "traefik.http.services.gc.loadbalancer.server.port=3000"
+
     networks:
-      - net-light
- 
-  traefik-light:
-    container_name: traefik-light
-    image: traefik:v2.11.31
-    restart: always
-    command:
-      - "--api.insecure=true"
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--entrypoints.http.address=:80"
-      - "--entrypoints.https.address=:443"
-      - "--log.level=DEBUG"
-      - "--log.filePath=/var/log/traefik.log"
-      - "--accesslog.filePath=/var/log/access.log"
-      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
-      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=http"
-      - "--certificatesresolvers.myresolver.acme.email=seu-email@exemplo.com"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-    ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
-      - ./logs:/var/log
-      - ./letsencrypt:/letsencrypt
-    networks:
-      - net-light
- 
+      - middleware-proxxima_net-middleware
+
 networks:
-  net-light:
-    driver: bridge
+  middleware-proxxima_net-middleware:
+    external: true

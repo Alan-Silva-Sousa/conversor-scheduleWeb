@@ -3,73 +3,118 @@
 <head>
   <meta charset="UTF-8">
   <title>Conversor de Escalas</title>
-
-  <!-- SDK GENESYS -->
   <script src="https://sdk-cdn.mypurecloud.com/javascript/221.0.0/purecloud-platform-client-v2.min.js"></script>
 
   <style>
     body {
-      font-family: sans-serif;
-      margin: 50px auto;
-      width: 80%;
-      max-width: 600px;
-    }
+       font-family: sans-serif;
+       margin: 50px auto;
+       width: 80%; 
+       max-width: 600px;
+        }
     h2 { text-align: center; }
-    form {
-      background: #f9f9f9;
-      padding: 30px;
-      border-radius: 8px;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      background: #007bff;
-      color: #fff;
-      border: none;
-      cursor: pointer;
-    }
+    form { 
+      background: #f9f9f9; 
+      padding: 30px; 
+      border-radius: 8px; 
+      display: none; 
+      }
+    button { 
+      width: 100%; 
+      padding: 12px; 
+      background: #007bff; 
+      color: #fff; 
+      border: none; 
+      cursor: pointer; 
+      }
+    button:disabled { background: #ccc; }
+    #status { text-align: center; margin-top: 10px; color: #666; }
   </style>
 </head>
-
 <body>
   <h2>Conversor de Escalas para Excel</h2>
+  
+  <div id="status">Autenticando no Genesys...</div>
 
-  <!-- FORM SÓ APARECE APÓS LOGIN -->
-  <form id="uploadForm" method="POST" enctype="multipart/form-data" style="display:none">
-    <input type="file" name="file" accept=".txt" required />
-    <button type="submit">Processar Arquivo</button>
+  <form id="uploadForm" method="POST" enctype="multipart/form-data">
+    <input type="file" id="fileInput" name="file" accept=".txt" required />
+    <button type="submit" id="submitBtn">Processar Arquivo</button>
   </form>
 
   <script>
-    // 🔹 INJETADO PELO BACKEND
-    const clientId = '__GENESYS_CLIENT_ID__';
+    const CLIENT_ID = "{{GENESYS_CLIENT_ID}}";
 
-    const client = purecloud.platformClient.ApiClient.instance;
-    client.setEnvironment('sae1.pure.cloud');
-    client.setPersistSettings(true, 'purecloud');
+    window.addEventListener('DOMContentLoaded', async () => {
+      const platformClient = require('platformClient');
+      const client = platformClient.ApiClient.instance;
+      
+      client.setEnvironment('sae1.pure.cloud');
+      client.setPersistSettings(true, 'purecloud');
 
-    async function genesysAuth() {
-      const redirectUri = window.location.origin + window.location.pathname;
+      async function genesysAuth() {
+        try {
+          const redirectUri = window.location.origin + window.location.pathname;
 
-      const token = await client.loginImplicitGrant(
-        clientId,
-        redirectUri
-      );
+          await client.loginImplicitGrant(CLIENT_ID, redirectUri);
+  
+          const usersApi = new platformClient.UsersApi();
+          const me = await usersApi.getUsersMe();
 
-      const usersApi = new purecloud.platformClient.UsersApi();
-      const me = await usersApi.getUsersMe();
+          sessionStorage.setItem('agentuserid', me.id);
+          document.getElementById('status').style.display = 'none';
+          document.getElementById('uploadForm').style.display = 'block';
+        } catch (err) {
+          console.error('❌ Erro Genesys:', err);
+          document.getElementById('status').innerText = 'Erro na autenticação. Verifique o console.';
+        }
+      }
 
-      sessionStorage.setItem('agentuserid', me.id);
+      await genesysAuth();
+      const form = document.getElementById('uploadForm');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fileInput = document.getElementById('fileInput');
+        if (!fileInput.files.length) return;
 
-      console.log('Logado no Genesys:', me.name);
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
 
-      // libera o form
-      document.getElementById('uploadForm').style.display = 'block';
-    }
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.textContent = 'Processando...';
 
-    genesysAuth().catch(err => {
-      console.error('Erro Genesys:', err);
-      alert('Erro ao autenticar no Genesys');
+        try {
+          const res = await fetch('/upload', { method: 'POST', body: formData });
+          
+          if (!res.ok) {
+            throw new Error('Erro ao processar arquivo no servidor');
+          }
+          const blob = await res.blob();
+          if (blob.size === 0) throw new Error('O arquivo retornado está vazio');
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = 'resultado.xlsx';
+          
+          document.body.appendChild(a);
+          a.click();
+          
+          // Limpeza
+          setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+          }, 500);
+        } catch (err) {
+          console.error('❌ Erro:', err);
+          alert(err.message);
+        } finally {
+          const button = form.querySelector('button');
+          button.disabled = false;
+          button.textContent = 'Processar Arquivo';
+          form.reset(); 
+        }
+      });
     });
   </script>
 </body>
