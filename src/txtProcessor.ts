@@ -31,8 +31,8 @@ export async function processarTxt(content: string): Promise<Buffer> {
       .replace(/\s+/g, ' ')
       .toUpperCase();
 
-    const [d, mth, y] = data.split('/');
-    const iso = `${y}-${mth}-${d}`;
+    const [mes, dia, y] = data.split('/');
+    const iso = `${y}-${mes}-${dia}`;
 
     const hIni = to24h(hIniRaw);
     const hFim = to24h(hFimRaw);
@@ -46,7 +46,7 @@ export async function processarTxt(content: string): Promise<Buffer> {
     horas[nome][iso] = `${hIni} - ${hFim}`;
   }
 
-  const datas = Array.from(datasSet).sort();
+  const datas = gerarIntervaloCompleto(Array.from(datasSet));
 
   const wb = new ExcelJS.Workbook();
   criarAba(wb, 'Dias Trabalhados', dias, datas, true);
@@ -64,6 +64,32 @@ function to24h(time: string): string {
   if (period === 'am' && h === 12) h = 0;
 
   return `${String(h).padStart(2, '0')}:${String(m ?? 0).padStart(2, '0')}`;
+}
+
+function gerarIntervaloCompleto(datas: string[]): string[] {
+  if (datas.length === 0) return [];
+
+  const ordenadas = datas.sort(); // ISO já ordena certo
+
+  const [anoInicio, mesInicio, diaInicio] = ordenadas[0].split('-').map(Number);
+  const [anoFim, mesFim, diaFim] = ordenadas[ordenadas.length - 1].split('-').map(Number);
+
+  const inicio = new Date(anoInicio, mesInicio - 1, diaInicio);
+  const fim = new Date(anoFim, mesFim - 1, diaFim);
+
+  const resultado: string[] = [];
+  const atual = new Date(inicio);
+
+  while (atual <= fim) {
+    const y = atual.getFullYear();
+    const m = String(atual.getMonth() + 1).padStart(2, '0');
+    const d = String(atual.getDate()).padStart(2, '0');
+
+    resultado.push(`${y}-${m}-${d}`);
+    atual.setDate(atual.getDate() + 1);
+  }
+
+  return resultado;
 }
 
 function criarAba(
