@@ -10,19 +10,25 @@ dotenv.config();
 const app = express();
 const upload = multer();
 
+app.use(express.static(path.join(__dirname, '../public'), { index: false }));
 
-app.use(express.static(path.join(__dirname, '../public')));
-
+// 2. Crie a rota raiz que faz a injeção do ID
 app.get('/', (req, res) => {
-  const filePath = path.join(__dirname, '../public/index.html');
+  // Use o process.cwd() para garantir o caminho correto no Docker
+  const filePath = path.join(process.cwd(), 'public', 'index.html');
   
   fs.readFile(filePath, 'utf8', (err, data) => {
     if (err) {
-      console.error('Erro ao ler index.html', err);
-      return res.status(500).send('Erro no servidor');
+      console.error('Erro ao ler index.html:', err);
+      return res.status(500).send('Erro interno ao carregar página');
     }
+
     const clientId = process.env.GENESYS_CLIENT_ID || '';
+    
+    // Faz a troca do texto pelo ID do .env
     const renderedHtml = data.replace('{{GENESYS_CLIENT_ID}}', clientId);
+    
+    console.log(`Injetando Client ID: ${clientId}`); // Log para ver no 'docker logs'
     res.send(renderedHtml);
   });
 });
