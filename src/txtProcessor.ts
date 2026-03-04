@@ -17,34 +17,47 @@ export async function processarTxt(content: string): Promise<Buffer> {
   const horas: Record<string, Record<string, string>> = {};
   const datasSet = new Set<string>();
 
-  const regex =
-    /^([\w\sÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç]+)\s+(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+(\d{2}\/\d{2}\/\d{4}),\s+([\d:]+\s?(?:am|pm))\s+to\s+([\d:]+\s?(?:am|pm))/i;
+  const regex = /^([\w\sÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç._-]+)\s+(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|segunda-feira|terça-feira|quarta-feira|quinta-feira|sexta-feira|sábado|domingo),\s+(\d{2}\/\d{2}\/\d{4}),\s+([\d:]+(?:\s?(?:am|pm))?)\s*(?:to|a|-)\s*([\d:]+(?:\s?(?:am|pm))?)/i;
 
   for (const linha of linhas) {
-    const m = linha.match(regex);
-    if (!m) continue;
+  const m = linha.match(regex);
+  if (!m) continue;
 
-    let [, nome, diaSemana, data, hIniRaw, hFimRaw] = m;
+  let [, nome, diaSemana, data, hIniRaw, hFimRaw] = m;
 
-    nome = nome
-      .trim()
-      .replace(/\s+/g, ' ')
-      .toUpperCase();
+  nome = nome
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toUpperCase();
 
-    const [mes, dia, y] = data.split('/');
-    const iso = `${y}-${mes}-${dia}`;
+  const partes = data.split('/');
 
-    const hIni = to24h(hIniRaw);
-    const hFim = to24h(hFimRaw);
+  let dia: string;
+  let mes: string;
+  let y: string;
 
-    datasSet.add(iso);
-
-    dias[nome] ??= {};
-    horas[nome] ??= {};
-
-    dias[nome][iso] = 'T';
-    horas[nome][iso] = `${hIni} - ${hFim}`;
+  // 🔥 Se o dia da semana estiver em inglês → formato americano
+  if (DIAS_SEMANA_MAP[diaSemana as keyof typeof DIAS_SEMANA_MAP]) {
+    // MM/DD/YYYY
+    [mes, dia, y] = partes;
+  } else {
+    // DD/MM/YYYY
+    [dia, mes, y] = partes;
   }
+
+  const iso = `${y}-${mes.padStart(2,'0')}-${dia.padStart(2,'0')}`;
+
+  const hIni = to24h(hIniRaw);
+  const hFim = to24h(hFimRaw);
+
+  datasSet.add(iso);
+
+  dias[nome] ??= {};
+  horas[nome] ??= {};
+
+  dias[nome][iso] = 'T';
+  horas[nome][iso] = `${hIni} - ${hFim}`;
+}
 
   const datas = gerarIntervaloCompleto(Array.from(datasSet));
 
@@ -57,7 +70,15 @@ export async function processarTxt(content: string): Promise<Buffer> {
 }
 
 function to24h(time: string): string {
-  const [hm, period] = time.toLowerCase().split(' ');
+  time = time.trim().toLowerCase();
+
+  // Se não tem am/pm → já está em 24h
+  if (!time.includes('am') && !time.includes('pm')) {
+    const [h, m] = time.split(':').map(Number);
+    return `${String(h).padStart(2, '0')}:${String(m ?? 0).padStart(2, '0')}`;
+  }
+
+  const [hm, period] = time.split(' ');
   let [h, m] = hm.split(':').map(Number);
 
   if (period === 'pm' && h !== 12) h += 12;
